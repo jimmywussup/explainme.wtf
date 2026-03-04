@@ -1,6 +1,6 @@
 pynput
 pyperclip
-google-generativeai
+google-genai
 customtkinter
 python-dotenv
 pyinstaller

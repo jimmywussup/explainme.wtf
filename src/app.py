@@ -189,7 +189,7 @@ class ExplainerApp(ctk.CTk):
             if platform.system() == "Windows" and win_keyboard is not None:
                 # Use keyboard library on Windows
                 win_combo = hotkey_str.lower().replace("cmd", "win").replace("command", "win")
-                win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper, suppress=True)
+                win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper)
                 self.hotkey_listener_type = "windows"
             else:
                 # Use pynput on macOS/Linux

@@ -3,6 +3,8 @@ name: Build explainme.wtf
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -55,3 +57,43 @@ jobs:
         with:
           name: explainme.wtf-macOS
           path: dist/explainme.wtf/
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: explainme.wtf-Windows
+          path: explainme.wtf-Windows
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: explainme.wtf-macOS
+          path: explainme.wtf-macOS
+
+      - name: Zip Windows Release
+        run: |
+          cd explainme.wtf-Windows
+          zip -r ../explainme.wtf-Windows.zip *
+
+      - name: Zip macOS Release
+        run: |
+          cd explainme.wtf-macOS
+          zip -r ../explainme.wtf-macOS.zip *
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            explainme.wtf-Windows.zip
+            explainme.wtf-macOS.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 from openai import OpenAI
 from anthropic import Anthropic
 
@@ -9,9 +9,9 @@ class LLMAdapter:
 
 class GeminiAdapter(LLMAdapter):
     def __init__(self, api_key: str, model_id: str = "gemini-2.5-flash"):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_id)
-        self.chat = self.model.start_chat(history=[])
+        self.client = genai.Client(api_key=api_key)
+        self.model_id = model_id
+        self.chat = self.client.chats.create(model=self.model_id)
         
     def send_message(self, prompt: str) -> str:
         response = self.chat.send_message(prompt)
