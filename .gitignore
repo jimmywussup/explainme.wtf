@@ -22,3 +22,12 @@ config.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local-only (not needed for builds)
+specs/
+landing_page/
+.human/
+GEMINI.md
+.geminiignore
+init_sdd.py
+instructuions of project archeticture
