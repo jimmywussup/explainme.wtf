@@ -32,7 +32,8 @@ DEFAULT_CONFIG = {
     "api_key_anthropic": "",
     "api_key_deepseek": "",
     "model_id": "gemini-2.5-flash",
-    "language": "English"
+    "language": "English",
+    "launch_on_startup": False
 }
 
 def load_config():
@@ -99,8 +100,12 @@ class SettingsWindow(ctk.CTkToplevel):
         self.hotkey_entry.insert(0, self.config.get("hotkey", "ctrl+`"))
         self.hotkey_entry.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
 
+        self.startup_var = ctk.BooleanVar(value=self.config.get("launch_on_startup", False))
+        self.startup_switch = ctk.CTkSwitch(self, text="Launch on Startup", variable=self.startup_var)
+        self.startup_switch.grid(row=5, column=0, columnspan=2, pady=(15, 0))
+
         self.save_btn = ctk.CTkButton(self, text="Save Settings", command=self.save_settings)
-        self.save_btn.grid(row=5, column=0, columnspan=2, pady=30)
+        self.save_btn.grid(row=6, column=0, columnspan=2, pady=30)
         
     def on_provider_change(self, choice):
         self.config[f"api_key_{self.current_ui_provider}"] = self.api_key_entry.get().strip()
@@ -142,7 +147,8 @@ class SettingsWindow(ctk.CTkToplevel):
             "api_key_deepseek": self.config.get("api_key_deepseek", ""),
             "model_id": self.model_entry.get().strip(),
             "language": self.language_var.get().strip(),
-            "hotkey": self.hotkey_entry.get().strip()
+            "hotkey": self.hotkey_entry.get().strip(),
+            "launch_on_startup": self.startup_var.get()
         }
         self.on_save(new_config)
         self.destroy()
@@ -158,6 +164,7 @@ class ExplainerApp(ctk.CTk):
         self.active_hotkey = self.config.get("hotkey", "ctrl+`")
         self.settings_window = None
         self.register_hotkey()
+        self.set_startup_state(self.config.get("launch_on_startup", False))
         
         # Setup PyStray in background
         self.setup_tray()
@@ -175,6 +182,37 @@ class ExplainerApp(ctk.CTk):
         )
         self.icon = pystray.Icon("explainme.wtf", create_tray_icon(), "explainme.wtf", menu)
         threading.Thread(target=self.icon.run, daemon=True).start()
+
+    def set_startup_state(self, enable: bool):
+        try:
+            if platform.system() == "Windows":
+                import winreg
+                key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
+                if enable:
+                    winreg.SetValueEx(key, "ExplainMeWTF", 0, winreg.REG_SZ, sys.executable)
+                else:
+                    try:
+                        winreg.DeleteValue(key, "ExplainMeWTF")
+                    except FileNotFoundError:
+                        pass
+                winreg.CloseKey(key)
+            elif platform.system() == "Darwin":
+                import plistlib
+                plist_path = os.path.expanduser("~/Library/LaunchAgents/com.explainme.wtf.plist")
+                if enable:
+                    plist = {
+                        "Label": "com.explainme.wtf",
+                        "ProgramArguments": [sys.executable],
+                        "RunAtLoad": True
+                    }
+                    os.makedirs(os.path.dirname(plist_path), exist_ok=True)
+                    with open(plist_path, "wb") as f:
+                        plistlib.dump(plist, f)
+                else:
+                    if os.path.exists(plist_path):
+                        os.remove(plist_path)
+        except Exception as e:
+            print(f"Failed to set startup state: {e}")
 
     def on_tray_settings(self, icon, item):
         self.queue.put(("TOGGLE_SETTINGS", None))
@@ -284,6 +322,12 @@ class ExplainerApp(ctk.CTk):
     def update_config(self, new_config):
         self.unregister_hotkey() # Stop listening to old
         save_config(new_config)
+        
+        old_startup = self.config.get("launch_on_startup", False)
+        new_startup = new_config.get("launch_on_startup", False)
+        if old_startup != new_startup:
+            self.set_startup_state(new_startup)
+            
         self.config = new_config
         self.active_hotkey = new_config.get("hotkey", "ctrl+`")
         self.register_hotkey() # Start listening to new
