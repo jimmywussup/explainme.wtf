@@ -187,35 +187,40 @@ class ExplainerApp(ctk.CTk):
             hotkey_str = self.active_hotkey
             
             if platform.system() == "Windows" and win_keyboard is not None:
-                # Use keyboard library on Windows
-                win_combo = hotkey_str.lower().replace("cmd", "win").replace("command", "win")
-                win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper)
-                self.hotkey_listener_type = "windows"
-            else:
-                # Use pynput on macOS/Linux
-                parts = hotkey_str.lower().split("+")
-                pynput_parts = []
-                for p in parts:
-                    p = p.strip()
-                    if p in ("ctrl", "control"):
-                        pynput_parts.append("<ctrl>")
-                    elif p in ("alt",):
-                        pynput_parts.append("<alt>")
-                    elif p in ("shift",):
-                        pynput_parts.append("<shift>")
-                    elif p in ("cmd", "command", "win"):
-                        pynput_parts.append("<cmd>")
-                    else:
-                        pynput_parts.append(p)
-                pynput_combo = "+".join(pynput_parts)
-                
-                self.hotkey_listener = pynput_keyboard.GlobalHotKeys({
-                    pynput_combo: self.on_hotkey
-                })
-                self.hotkey_listener.start()
-                self.hotkey_listener_type = "pynput"
+                try:
+                    # Use keyboard library on Windows
+                    win_combo = hotkey_str.lower().replace("cmd", "win").replace("command", "win")
+                    win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper)
+                    self.hotkey_listener_type = "windows"
+                    return  # Success, skip pynput
+                except ValueError:
+                    pass  # Key not in layout, fall through to pynput
+            
+            # Use pynput on macOS/Linux/Fallback
+            parts = hotkey_str.lower().split("+")
+            pynput_parts = []
+            for p in parts:
+                p = p.strip()
+                if p in ("ctrl", "control"):
+                    pynput_parts.append("<ctrl>")
+                elif p in ("alt",):
+                    pynput_parts.append("<alt>")
+                elif p in ("shift",):
+                    pynput_parts.append("<shift>")
+                elif p in ("cmd", "command", "win"):
+                    pynput_parts.append("<cmd>")
+                else:
+                    pynput_parts.append(p)
+            pynput_combo = "+".join(pynput_parts)
+            
+            self.hotkey_listener = pynput_keyboard.GlobalHotKeys({
+                pynput_combo: self.on_hotkey
+            })
+            self.hotkey_listener.start()
+            self.hotkey_listener_type = "pynput"
         except Exception as e:
-            pass
+            import traceback
+            traceback.print_exc()
 
     def unregister_hotkey(self):
         try:
@@ -420,12 +425,12 @@ class ExplainerApp(ctk.CTk):
 
 if __name__ == "__main__":
     # Prevent print() crash in windowed mode by redirecting stdout/stderr
-    try:
-        devnull = open(os.devnull, "w", encoding="utf-8")
-        sys.stdout = devnull
-        sys.stderr = devnull
-    except Exception:
-        pass
+    #try:
+    #    devnull = open(os.devnull, "w", encoding="utf-8")
+    #    sys.stdout = devnull
+    #    sys.stderr = devnull
+    #except Exception:
+    #    pass
 
     # Enforce single instance by binding to a local TCP port
     lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
