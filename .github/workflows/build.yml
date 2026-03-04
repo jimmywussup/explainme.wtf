@@ -22,6 +22,9 @@ jobs:
       - name: Build with PyInstaller
         run: python -m PyInstaller app.spec --clean
 
+      - name: Include README
+        run: copy README.md dist\explainme.wtf\README.md
+
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
@@ -43,6 +46,9 @@ jobs:
 
       - name: Build with PyInstaller
         run: python -m PyInstaller app.spec --clean
+
+      - name: Include README
+        run: cp README.md dist/explainme.wtf/README.md
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4

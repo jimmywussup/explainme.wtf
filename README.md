@@ -28,8 +28,9 @@ Download the latest build from the [GitHub Actions](../../actions) **Artifacts**
 1. Download and extract the ZIP
 2. Move `explainme.wtf` to your Applications folder
 3. Double-click to launch
-4. **First launch**: macOS may ask you to allow the app in System Settings > Privacy & Security
-5. Enter your API key in the Settings window
+4. **First launch**: macOS may block the app — go to **System Settings → Privacy & Security** and click **"Open Anyway"**
+5. **Grant Accessibility**: Go to **System Settings → Privacy & Security → Accessibility** and enable the app (required for the global hotkey to work)
+6. Enter your API key in the Settings window
 
 ## 🛠️ Run from Source
 
