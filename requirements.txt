@@ -1,0 +1,10 @@
+pynput
+pyperclip
+google-generativeai
+customtkinter
+python-dotenv
+pyinstaller
+openai
+anthropic
+pystray
+Pillow

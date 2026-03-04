@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>explainme.wtf - Understand Any Word Instantly</title>
+    <link rel="stylesheet" href="index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="logo">explainme.wtf</div>
+        <div class="nav-links">
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How it Works</a>
+            <a href="#download" class="nav-cta">Download</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1 class="fade-in">Understand any word <span class="highlight">instantly.</span></h1>
+            <p class="fade-in delay-1">Highlight text anywhere on your PC, press <kbd>Ctrl</kbd> + <kbd>`</kbd>, and get
+                a concise AI explanation powered by Gemini, OpenAI, Claude, or DeepSeek — natively on Windows.</p>
+            <div class="cta-buttons fade-in delay-2">
+                <a href="#download" class="primary-btn">Download for Windows</a>
+                <a href="#features" class="secondary-btn">Learn More</a>
+            </div>
+        </div>
+        <div class="hero-visual fade-in delay-3">
+            <div class="mockup-window">
+                <div class="mockup-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                    <span class="title">explainme.wtf</span>
+                </div>
+                <div class="mockup-body">
+                    <p class="query">Selected Text: "Spec-Driven Development"</p>
+                    <p class="response"><strong>Gemini:</strong> Spec-Driven Development (SDD) is a software engineering
+                        approach where the desired behavior of a system is defined in detailed documentation
+                        (specifications) before any code is written. This ensures the final product closely matches the
+                        original requirements.</p>
+                    <div class="chat-input-mock">
+                        <span>Ask a follow-up question...</span>
+                        <button>Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="features section">
+        <h2>Why use <span class="highlight">explainme.wtf</span>?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon">⚡</div>
+                <h3>Lightning Fast</h3>
+                <p>No need to open a new browser tab. Get your answers natively directly over your current active window
+                    without breaking flow.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🧠</div>
+                <h3>Multi-LLM Support</h3>
+                <p>Not locked into one ecosystem. Bring your own API key for Google Gemini, OpenAI ChatGPT, Anthropic
+                    Claude, or DeepSeek.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">💬</div>
+                <h3>Contextual Chat</h3>
+                <p>Don't just get a dictionary definition. Ask follow-up questions in the built-in chat window to fully
+                    grasp complex subjects.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🌍</div>
+                <h3>Multi-Language Output</h3>
+                <p>Get explanations in your preferred language. Choose from English, Russian, Ukrainian, Spanish, French, or German.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">🪶</div>
+                <h3>Lightweight &amp; Smart</h3>
+                <p>Runs quietly in the system tray with single-instance enforcement. No duplicates, no clutter — just one clean background process.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="how-it-works" class="how-it-works section">
+        <h2>How it Works</h2>
+        <div class="steps-container">
+            <div class="step">
+                <div class="step-number">1</div>
+                <h3>Highlight</h3>
+                <p>Select any confusing text in your browser, PDF, or code editor.</p>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <h3>Trigger</h3>
+                <p>Press the customizable global hotkey (default: <kbd>Ctrl</kbd> + <kbd>`</kbd>).</p>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <h3>Understand</h3>
+                <p>Read the beautiful, AI-generated explanation popup instantly.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="download" class="download section">
+        <div class="download-card">
+            <h2>Ready to boost your reading comprehension?</h2>
+            <p>Download the lightweight, secure Windows executable today. No installation required. Just run it, enter
+                your API key, and go.</p>
+            <a href="#" class="primary-btn large-btn">Download explainme.wtf v1.0 (.exe)</a>
+            <p class="small-text">Requires Windows 10 or 11. 100% Free and Open Source.</p>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-content">
+            <div class="logo">explainme.wtf</div>
+            <p>&copy; 2026 explainme.wtf Project. All rights reserved.</p>
+            <div class="social-links">
+                <a href="#">GitHub</a>
+                <a href="#">Twitter</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Simple Intersection Observer for scroll animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.1 });
+
+        document.querySelectorAll('.feature-card, .step, .download-card').forEach((el) => {
+            el.classList.add('scroll-animate');
+            observer.observe(el);
+        });
+    </script>
+</body>
+
+</html>
