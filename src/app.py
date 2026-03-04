@@ -10,6 +10,10 @@ import pyperclip
 import pystray
 from pynput import keyboard as pynput_keyboard
 from pynput.keyboard import Key, Controller as KeyboardController
+try:
+    import keyboard as win_keyboard
+except ImportError:
+    win_keyboard = None
 from PIL import Image, ImageDraw
 import customtkinter as ctk
 
@@ -181,37 +185,56 @@ class ExplainerApp(ctk.CTk):
     def register_hotkey(self):
         try:
             hotkey_str = self.active_hotkey
-            # Convert config hotkey string (e.g. "ctrl+`") to pynput format (e.g. "<ctrl>+`")
-            parts = hotkey_str.lower().split("+")
-            pynput_parts = []
-            for p in parts:
-                p = p.strip()
-                if p in ("ctrl", "control"):
-                    pynput_parts.append("<ctrl>")
-                elif p in ("alt",):
-                    pynput_parts.append("<alt>")
-                elif p in ("shift",):
-                    pynput_parts.append("<shift>")
-                elif p in ("cmd", "command", "win"):
-                    pynput_parts.append("<cmd>")
-                else:
-                    pynput_parts.append(p)
-            pynput_combo = "+".join(pynput_parts)
             
-            self.hotkey_listener = pynput_keyboard.GlobalHotKeys({
-                pynput_combo: self.on_hotkey
-            })
-            self.hotkey_listener.start()
+            if platform.system() == "Windows" and win_keyboard is not None:
+                # Use keyboard library on Windows
+                win_combo = hotkey_str.lower().replace("cmd", "win").replace("command", "win")
+                win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper, suppress=True)
+                self.hotkey_listener_type = "windows"
+            else:
+                # Use pynput on macOS/Linux
+                parts = hotkey_str.lower().split("+")
+                pynput_parts = []
+                for p in parts:
+                    p = p.strip()
+                    if p in ("ctrl", "control"):
+                        pynput_parts.append("<ctrl>")
+                    elif p in ("alt",):
+                        pynput_parts.append("<alt>")
+                    elif p in ("shift",):
+                        pynput_parts.append("<shift>")
+                    elif p in ("cmd", "command", "win"):
+                        pynput_parts.append("<cmd>")
+                    else:
+                        pynput_parts.append(p)
+                pynput_combo = "+".join(pynput_parts)
+                
+                self.hotkey_listener = pynput_keyboard.GlobalHotKeys({
+                    pynput_combo: self.on_hotkey
+                })
+                self.hotkey_listener.start()
+                self.hotkey_listener_type = "pynput"
         except Exception as e:
             pass
 
     def unregister_hotkey(self):
         try:
-            if hasattr(self, 'hotkey_listener') and self.hotkey_listener is not None:
-                self.hotkey_listener.stop()
-                self.hotkey_listener = None
+            if getattr(self, 'hotkey_listener_type', None) == "windows":
+                if win_keyboard is not None:
+                    # remove_all_hotkeys can sometimes throw if hotkey isn't found perfectly, but it's safe
+                    win_keyboard.remove_all_hotkeys()
+            elif getattr(self, 'hotkey_listener_type', None) == "pynput":
+                if hasattr(self, 'hotkey_listener') and self.hotkey_listener is not None:
+                    self.hotkey_listener.stop()
+                    self.hotkey_listener = None
         except Exception:
             pass
+
+    def _on_hotkey_wrapper(self):
+        # We need a wrapper because the keyboard module calls this in a background thread 
+        # and we need to pass control cleanly, or just call on_hotkey directly 
+        # since on_hotkey already queues the UI thread
+        self.on_hotkey()
 
     def on_hotkey(self):
         self.unregister_hotkey()
