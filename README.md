@@ -9,7 +9,6 @@
 - 💬 **Contextual Chat** — Ask follow-up questions in the built-in chat window
 - 🌍 **Multi-Language** — Get explanations in English, Russian, Ukrainian, Spanish, French, or German
 - 🪶 **Lightweight** — Runs quietly in the system tray with single-instance enforcement
-- 🚀 **Auto-Start** — Optional 'Launch on Startup' toggle to have the tool always ready
 
 ## 📥 Download
 
