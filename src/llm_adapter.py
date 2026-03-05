@@ -1,11 +1,16 @@
 import os
+import base64
 from google import genai
+from google.genai import types
 from openai import OpenAI
 from anthropic import Anthropic
 
 class LLMAdapter:
     def send_message(self, prompt: str) -> str:
         raise NotImplementedError
+
+    def send_image_message(self, prompt: str, image_bytes: bytes) -> str:
+        raise NotImplementedError("This provider does not support image input.")
 
 class GeminiAdapter(LLMAdapter):
     def __init__(self, api_key: str, model_id: str = "gemini-2.5-flash"):
@@ -15,6 +20,11 @@ class GeminiAdapter(LLMAdapter):
         
     def send_message(self, prompt: str) -> str:
         response = self.chat.send_message(prompt)
+        return response.text
+
+    def send_image_message(self, prompt: str, image_bytes: bytes) -> str:
+        image_part = types.Part.from_bytes(data=image_bytes, mime_type="image/png")
+        response = self.chat.send_message([prompt, image_part])
         return response.text
 
 class OpenAIAdapter(LLMAdapter):
@@ -33,6 +43,21 @@ class OpenAIAdapter(LLMAdapter):
         self.messages.append({"role": "assistant", "content": msg_text})
         return msg_text
 
+    def send_image_message(self, prompt: str, image_bytes: bytes) -> str:
+        b64_image = base64.b64encode(image_bytes).decode("utf-8")
+        content = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64_image}"}}
+        ]
+        self.messages.append({"role": "user", "content": content})
+        response = self.client.chat.completions.create(
+            model=self.model_id,
+            messages=self.messages
+        )
+        msg_text = response.choices[0].message.content
+        self.messages.append({"role": "assistant", "content": msg_text})
+        return msg_text
+
 class AnthropicAdapter(LLMAdapter):
     def __init__(self, api_key: str, model_id: str = "claude-3-5-sonnet-20241022"):
         self.client = Anthropic(api_key=api_key)
@@ -41,6 +66,29 @@ class AnthropicAdapter(LLMAdapter):
         
     def send_message(self, prompt: str) -> str:
         self.messages.append({"role": "user", "content": prompt})
+        response = self.client.messages.create(
+            model=self.model_id,
+            max_tokens=1024,
+            messages=self.messages
+        )
+        msg_text = response.content[0].text
+        self.messages.append({"role": "assistant", "content": msg_text})
+        return msg_text
+
+    def send_image_message(self, prompt: str, image_bytes: bytes) -> str:
+        b64_image = base64.b64encode(image_bytes).decode("utf-8")
+        content = [
+            {"type": "text", "text": prompt},
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/png",
+                    "data": b64_image
+                }
+            }
+        ]
+        self.messages.append({"role": "user", "content": content})
         response = self.client.messages.create(
             model=self.model_id,
             max_tokens=1024,

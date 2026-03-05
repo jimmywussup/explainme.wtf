@@ -1,5 +1,6 @@
 import os
 import sys
+import io
 import json
 import time
 import socket
@@ -14,7 +15,7 @@ try:
     import keyboard as win_keyboard
 except ImportError:
     win_keyboard = None
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageGrab, ImageTk
 import customtkinter as ctk
 
 from llm_adapter import get_llm_adapter
@@ -243,7 +244,14 @@ class ExplainerApp(ctk.CTk):
 
     def on_hotkey(self):
         self.unregister_hotkey()
-        # Simulate Ctrl+C (Windows/Linux) or Cmd+C (macOS) to copy selected text
+
+        # Step 1: Save the current clipboard image before we potentially destroy it
+        saved_image_bytes = self._check_clipboard_image()
+
+        # Step 2: Empty the text clipboard to ensure we don't grab stale text
+        pyperclip.copy("")
+
+        # Step 3: Simulate Ctrl+C (Windows/Linux) or Cmd+C (macOS) to copy selected text
         kb = KeyboardController()
         modifier = Key.cmd if platform.system() == "Darwin" else Key.ctrl
         kb.press(modifier)
@@ -251,18 +259,40 @@ class ExplainerApp(ctk.CTk):
         kb.release('c')
         kb.release(modifier)
         time.sleep(0.15)
+        
+        # Step 4: Check if any new text was copied
         text = pyperclip.paste().strip()
         
+        # Step 5: Decide what to send to the LLM (Text has priority)
         if text:
+            # We found new text from the Ctrl+C
             self.queue.put(("SHOW_UI", text))
+        elif saved_image_bytes:
+            # No text, but we had an image saved from before the Ctrl+C
+            self.queue.put(("SHOW_UI_IMAGE", saved_image_bytes))
         else:
+            # Nothing at all
             self.register_hotkey()
+
+    def _check_clipboard_image(self):
+        """Check if the clipboard contains an image and return PNG bytes."""
+        try:
+            img = ImageGrab.grabclipboard()
+            if img is not None and isinstance(img, Image.Image):
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                return buf.getvalue()
+        except Exception:
+            pass
+        return None
 
     def poll_queue(self):
         try:
             msg, payload = self.queue.get_nowait()
             if msg == "SHOW_UI":
                 self.show_popup(payload)
+            elif msg == "SHOW_UI_IMAGE":
+                self.show_popup(None, image_bytes=payload)
             elif msg == "SHOW_SETTINGS":
                 if not self.settings_window or not self.settings_window.winfo_exists():
                     self.settings_window = SettingsWindow(self, self.config, self.update_config)
@@ -288,22 +318,37 @@ class ExplainerApp(ctk.CTk):
         self.active_hotkey = new_config.get("hotkey", "ctrl+`")
         self.register_hotkey() # Start listening to new
 
-    def show_popup(self, text):
+    def show_popup(self, text, image_bytes=None):
+        is_image_mode = image_bytes is not None
         popup = ctk.CTkToplevel(self)
         popup.title("explainme.wtf")
-        popup.geometry("500x400")
+        popup_width = 550 if is_image_mode else 500
+        popup_height = 500 if is_image_mode else 400
+        popup.geometry(f"{popup_width}x{popup_height}")
         popup.attributes("-topmost", True)
         popup.after(200, lambda: popup.attributes("-topmost", False))
         
         ws = popup.winfo_screenwidth()
         hs = popup.winfo_screenheight()
-        x = int((ws/2) - (500/2))
-        y = int((hs/2) - (400/2))
+        x = int((ws/2) - (popup_width/2))
+        y = int((hs/2) - (popup_height/2))
         popup.geometry('+%d+%d' % (x, y))
         popup.focus_force()
         
+        # Show a thumbnail preview for screenshots
+        if is_image_mode:
+            try:
+                pil_image = Image.open(io.BytesIO(image_bytes))
+                pil_image.thumbnail((popup_width - 30, 150))
+                ctk_image = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=pil_image.size)
+                img_label = ctk.CTkLabel(popup, image=ctk_image, text="")
+                img_label.image = ctk_image
+                img_label.pack(padx=15, pady=(10, 5))
+            except Exception:
+                pass
+        
         textbox = ctk.CTkTextbox(popup, wrap="word", font=("Segoe UI", 15))
-        textbox.pack(fill="both", expand=True, padx=15, pady=(15, 5))
+        textbox.pack(fill="both", expand=True, padx=15, pady=(15 if not is_image_mode else 5, 5))
         
         input_frame = ctk.CTkFrame(popup, fg_color="transparent")
         input_frame.pack(fill="x", padx=15, pady=(0, 15))
@@ -316,7 +361,10 @@ class ExplainerApp(ctk.CTk):
         send_btn.pack(side="right")
         send_btn.configure(state="disabled")
         
-        textbox.insert("0.0", f"Selected Text: \"{text}\"\n\nThinking...")
+        if is_image_mode:
+            textbox.insert("0.0", "Screenshot captured\n\nAnalyzing image...")
+        else:
+            textbox.insert("0.0", f"Selected Text: \"{text}\"\n\nThinking...")
         textbox.configure(state="disabled")
         
         def on_close():
@@ -328,7 +376,6 @@ class ExplainerApp(ctk.CTk):
         popup.bind("<Escape>", lambda e: on_close())
 
         provider = self.config.get("provider", "gemini")
-        # Try local config first, then fallback to .env environment variables
         api_key = self.config.get(f"api_key_{provider}", "")
         if not api_key:
             env_key_map = {
@@ -348,7 +395,6 @@ class ExplainerApp(ctk.CTk):
             textbox.configure(state="disabled")
             return
 
-        # Initialize the chosen adapter
         try:
             adapter = get_llm_adapter(provider, api_key, model_id)
         except Exception as e:
@@ -375,7 +421,10 @@ class ExplainerApp(ctk.CTk):
         send_btn.configure(command=handle_send)
         chat_input.bind("<Return>", handle_send)
         
-        threading.Thread(target=self.fetch_initial_explanation, args=(adapter, text, textbox, popup, chat_input, send_btn), daemon=True).start()
+        if is_image_mode:
+            threading.Thread(target=self.fetch_initial_image_explanation, args=(adapter, image_bytes, textbox, popup, chat_input, send_btn), daemon=True).start()
+        else:
+            threading.Thread(target=self.fetch_initial_explanation, args=(adapter, text, textbox, popup, chat_input, send_btn), daemon=True).start()
 
     def fetch_initial_explanation(self, adapter, text, textbox, popup, chat_input, send_btn):
         language_pref = self.config.get("language", "English")
@@ -396,6 +445,37 @@ class ExplainerApp(ctk.CTk):
                 textbox.configure(state="normal")
                 textbox.delete("0.0", "end")
                 textbox.insert("0.0", f"Selected Text: \"{text}\"\n\n{explanation}")
+                textbox.see("end")
+                textbox.configure(state="disabled")
+                chat_input.configure(state="normal")
+                send_btn.configure(state="normal")
+                chat_input.focus_set()
+            popup.after(0, apply_update)
+
+    def fetch_initial_image_explanation(self, adapter, image_bytes, textbox, popup, chat_input, send_btn):
+        language_pref = self.config.get("language", "English")
+        try:
+            prompt = (
+                "You are a helpful visual content analyzer and explainer. "
+                "Analyze this screenshot and describe its content in plain, easy-to-understand language. "
+                "If the image contains text, tables, or data, extract and explain the key information. "
+                f"You MUST answer in the {language_pref} language. "
+                "Keep it concise but thorough."
+            )
+            explanation = adapter.send_image_message(prompt, image_bytes)
+        except NotImplementedError:
+            explanation = (
+                f"Error: {self.config.get('provider', 'this provider').capitalize()} does not support image input.\n"
+                "Please switch to Gemini, OpenAI, or Anthropic in Settings to use screenshot analysis."
+            )
+        except Exception as e:
+            explanation = f"Error analyzing image:\n{str(e)}"
+            
+        if popup.winfo_exists():
+            def apply_update():
+                textbox.configure(state="normal")
+                textbox.delete("0.0", "end")
+                textbox.insert("0.0", f"Screenshot Analysis\n\n{explanation}")
                 textbox.see("end")
                 textbox.configure(state="disabled")
                 chat_input.configure(state="normal")
