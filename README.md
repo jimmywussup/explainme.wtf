@@ -1,10 +1,11 @@
 # explainme.wtf
 
-> **Understand any word instantly.** Highlight text anywhere on your PC, press a hotkey, and get a concise AI explanation.
+> **Understand anything instantly.** Highlight text or copy an image anywhere on your PC, press a hotkey, and get a concise AI explanation.
 
 ## ✨ Features
 
 - ⚡ **Lightning Fast** — Get answers natively over your current window without opening a browser tab
+- 🖼️ **Image Understanding** — Copy any image to your clipboard to instantly analyze it with vision-enabled LLMs
 - 🧠 **Multi-LLM Support** — Bring your own API key for Gemini, OpenAI, Claude, or DeepSeek
 - 💬 **Contextual Chat** — Ask follow-up questions in the built-in chat window
 - 🌍 **Multi-Language** — Get explanations in English, Russian, Ukrainian, Spanish, French, or German
