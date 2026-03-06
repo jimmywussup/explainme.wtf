@@ -23,6 +23,7 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+import sys
 exe_name = 'explainme.wtf' if sys.platform == 'win32' else 'explainme'
 
 exe = EXE(
