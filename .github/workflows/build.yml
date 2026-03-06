@@ -30,11 +30,16 @@ jobs:
       - name: Include README
         run: copy README.md dist\explainme.wtf\README.md
 
+      - name: Zip Windows Release
+        run: |
+          cd dist
+          Compress-Archive -Path explainme.wtf\* -DestinationPath ..\explainme.wtf-Windows.zip
+
       - name: Upload Windows build
         uses: actions/upload-artifact@v4
         with:
-          name: explainme.wtf-Windows
-          path: dist/explainme.wtf/
+          name: explainme.wtf-Windows-zip
+          path: explainme.wtf-Windows.zip
 
   build-macos:
     runs-on: macos-latest
@@ -52,14 +57,22 @@ jobs:
       - name: Build with PyInstaller
         run: python -m PyInstaller app.spec --clean
 
-      - name: Include README
-        run: cp README.md dist/explainme.wtf/README.md
+      - name: Prepare Release Directory
+        run: |
+          mkdir -p release_dir
+          cp README.md release_dir/README.md
+          cp -r dist/explainme.app release_dir/
+
+      - name: Zip macOS release
+        run: |
+          cd release_dir
+          zip -vr ../explainme.wtf-macOS.zip *
 
       - name: Upload macOS build
         uses: actions/upload-artifact@v4
         with:
-          name: explainme.wtf-macOS
-          path: dist/explainme.wtf/
+          name: explainme.wtf-macOS-zip
+          path: explainme.wtf-macOS.zip
 
   release:
     needs: [build-windows, build-macos]
@@ -71,24 +84,14 @@ jobs:
       - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: explainme.wtf-Windows
-          path: explainme.wtf-Windows
+          name: explainme.wtf-Windows-zip
+          path: .
 
       - name: Download macOS Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: explainme.wtf-macOS
-          path: explainme.wtf-macOS
-
-      - name: Zip Windows Release
-        run: |
-          cd explainme.wtf-Windows
-          zip -r ../explainme.wtf-Windows.zip *
-
-      - name: Zip macOS Release
-        run: |
-          cd explainme.wtf-macOS
-          zip -r ../explainme.wtf-macOS.zip *
+          name: explainme.wtf-macOS-zip
+          path: .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
