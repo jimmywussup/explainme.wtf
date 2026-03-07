@@ -226,6 +226,9 @@ class SettingsWindow(ctk.CTkToplevel):
         self.after(200, lambda: self.attributes("-topmost", False))
         self.on_save = on_save_callback
         
+        # Handle macOS window close explicitly so it doesn't kill the ctk mainloop implicitly
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
         # UI Elements
         self.grid_columnconfigure(1, weight=1)
         
@@ -477,12 +480,26 @@ class SettingsWindow(ctk.CTkToplevel):
             self.stop_recording()
             
         self.on_save(new_config)
-        self.destroy()
+        
+        # On macOS, don't destroy the window, just withdraw (hide) it so the app doesn't quit
+        if platform.system() == "Darwin":
+            self.withdraw()
+        else:
+            self.destroy()
+
+    def on_closing(self):
+        # Handle the native "X" button click
+        if platform.system() == "Darwin":
+            self.withdraw() # Just hide it, don't destroy, so click-on-dock can restore it
+        else:
+            self.destroy()
 
 class ExplainerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.withdraw()  # Hide the main background window
+        if platform.system() != "Darwin":
+            self.withdraw()  # Hide the main background window on Windows/Linux
+            
         self.queue = queue.Queue()
         
         self.config = load_config()
@@ -492,14 +509,25 @@ class ExplainerApp(ctk.CTk):
         self.last_hotkey_time = 0.0
         self.register_hotkey()
         
-        # Setup PyStray in background
-        self.setup_tray()
-        
-        if self.config.pop("_is_first_run", False):
+        # Setup PyStray in background if not macOS
+        if platform.system() != "Darwin":
+            self.setup_tray()
+        else:
+            # On macOS we don't have a background tray so we just show settings as main window
             self.after(500, lambda: self.queue.put(("SHOW_SETTINGS", None)))
+        
+        if self.config.pop("_is_first_run", False) and platform.system() != "Darwin":
+            self.after(500, lambda: self.queue.put(("SHOW_SETTINGS", None)))
+            
+        # Bind macOS Reopen event (when user clicks the dock icon of an already running app)
+        if platform.system() == "Darwin":
+            self.createcommand("::tk::mac::ReopenApplication", self.on_mac_reopen)
         
         # Fast UI poller
         self.after(50, self.poll_queue)
+
+    def on_mac_reopen(self):
+        self.queue.put(("SHOW_SETTINGS", None))
 
     def setup_tray(self):
         menu = pystray.Menu(
@@ -636,15 +664,21 @@ class ExplainerApp(ctk.CTk):
                 if not self.settings_window or not self.settings_window.winfo_exists():
                     self.settings_window = SettingsWindow(self, self.config, self.update_config)
                 else:
+                    if platform.system() == "Darwin":
+                        self.settings_window.deiconify() # Restore if it was withdrawn
                     self.settings_window.focus_force()
             elif msg == "TOGGLE_SETTINGS":
                 if self.settings_window and self.settings_window.winfo_exists():
-                    self.settings_window.destroy()
-                    self.settings_window = None
+                    if platform.system() == "Darwin":
+                        self.settings_window.withdraw()
+                    else:
+                        self.settings_window.destroy()
+                        self.settings_window = None
                 else:
                     self.settings_window = SettingsWindow(self, self.config, self.update_config)
             elif msg == "QUIT":
-                self.icon.stop()
+                if platform.system() != "Darwin" and hasattr(self, 'icon'):
+                    self.icon.stop()
                 self.destroy()
         except queue.Empty:
             pass

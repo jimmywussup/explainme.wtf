@@ -9,7 +9,7 @@
 - 🧠 **Multi-LLM Support** — Bring your own API key for Gemini, OpenAI, Claude, or DeepSeek
 - 💬 **Contextual Chat** — Ask follow-up questions in the built-in chat window
 - 🌍 **Multi-Language** — Get explanations in English, Russian, Ukrainian, Spanish, French, or German
-- 🪶 **Lightweight** — Runs quietly in the system tray with single-instance enforcement
+- 🪶 **Lightweight** — Runs quietly in the background (System Tray on Windows/Linux, Dock on macOS)
 
 ## 📥 Download
 
@@ -30,7 +30,8 @@ Download the latest build from the [GitHub Actions](../../actions) **Artifacts**
 2. Move the `explainme` app to your Applications folder
 3. **First launch:** Right-click the app and select **Open** (this bypasses the Apple security warning)
 4. **Grant Accessibility**: Go to **System Settings → Privacy & Security → Accessibility** and enable the app (required for the global hotkey to work)
-5. Enter your API key in the Settings window
+5. Enter your API key in the main Settings window
+   - Note: The app stays alive in your Dock. If you close the settings window, simply click the app icon in your Dock to reopen it!
 
 ## 🛠️ Run from Source
 
