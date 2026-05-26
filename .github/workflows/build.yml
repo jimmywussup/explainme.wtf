@@ -40,41 +40,8 @@ jobs:
           name: explainme.wtf-Windows-zip
           path: explainme.wtf-Windows.zip
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Build with PyInstaller
-        run: python -m PyInstaller app.spec --clean
-
-      - name: Prepare Release Directory
-        run: |
-          mkdir -p release_dir
-          cp README.md release_dir/README.md
-          cp -r dist/explainme.app release_dir/
-
-      - name: Zip macOS release
-        run: |
-          cd release_dir
-          zip -vr ../explainme.wtf-macOS.zip *
-
-      - name: Upload macOS build
-        uses: actions/upload-artifact@v4
-        with:
-          name: explainme.wtf-macOS-zip
-          path: explainme.wtf-macOS.zip
-
   release:
-    needs: [build-windows, build-macos]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -86,18 +53,11 @@ jobs:
           name: explainme.wtf-Windows-zip
           path: .
 
-      - name: Download macOS Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: explainme.wtf-macOS-zip
-          path: .
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             explainme.wtf-Windows.zip
-            explainme.wtf-macOS.zip
           draft: false
           prerelease: false
         env:

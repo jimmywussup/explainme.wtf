@@ -7,7 +7,6 @@ import time
 import socket
 import queue
 import threading
-import platform
 import pyperclip
 import pystray
 from pynput import keyboard as pynput_keyboard
@@ -203,7 +202,7 @@ class SettingsWindow(ctk.CTkToplevel):
         
         self.provider_models = {
             "gemini": {
-                "fast": ["gemini-3.1-flash-lite-preview", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
+                "fast": ["gemini-3.1-flash-lite", "gemini-3-flash-preview", "gemini-2.5-flash", "gemini-2.5-flash-lite"],
                 "thinking": ["gemini-3.1-pro-preview", "gemini-2.5-pro"]
             },
             "openai": {
@@ -226,7 +225,6 @@ class SettingsWindow(ctk.CTkToplevel):
         self.after(200, lambda: self.attributes("-topmost", False))
         self.on_save = on_save_callback
         
-        # Handle macOS window close explicitly so it doesn't kill the ctk mainloop implicitly
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # UI Elements
@@ -338,7 +336,7 @@ class SettingsWindow(ctk.CTkToplevel):
         self.record_btn.configure(text=listening_text, fg_color="#FFA500", text_color="black") # Orange indicating recording
         self.current_keys.clear()
         
-        if platform.system() == "Windows" and win_keyboard is not None:
+        if win_keyboard is not None:
             def record_win():
                 try:
                     # read_hotkey blocks until a combination is fully pressed
@@ -365,7 +363,7 @@ class SettingsWindow(ctk.CTkToplevel):
             self.windows_record_thread.start()
             return
 
-        # Pynput logic for macOS / Linux
+        # Pynput fallback recorder (used only if the keyboard library isn't available)
         def on_press(key):
             try:
                 key_name = key.name if hasattr(key, 'name') else key.char
@@ -480,54 +478,32 @@ class SettingsWindow(ctk.CTkToplevel):
             self.stop_recording()
             
         self.on_save(new_config)
-        
-        # On macOS, don't destroy the window, just withdraw (hide) it so the app doesn't quit
-        if platform.system() == "Darwin":
-            self.withdraw()
-        else:
-            self.destroy()
+        self.destroy()
 
     def on_closing(self):
-        # Handle the native "X" button click
-        if platform.system() == "Darwin":
-            self.withdraw() # Just hide it, don't destroy, so click-on-dock can restore it
-        else:
-            self.destroy()
+        self.destroy()
 
 class ExplainerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        if platform.system() != "Darwin":
-            self.withdraw()  # Hide the main background window on Windows/Linux
-            
+        self.withdraw()  # Hide the main background window; the tray is the visible surface
+
         self.queue = queue.Queue()
-        
+
         self.config = load_config()
         self.current_adapter = None
         self.active_hotkey = self.config.get("hotkey", "ctrl+`")
         self.settings_window = None
         self.last_hotkey_time = 0.0
         self.register_hotkey()
-        
-        # Setup PyStray in background if not macOS
-        if platform.system() != "Darwin":
-            self.setup_tray()
-        else:
-            # On macOS we don't have a background tray so we just show settings as main window
+
+        self.setup_tray()
+
+        if self.config.pop("_is_first_run", False):
             self.after(500, lambda: self.queue.put(("SHOW_SETTINGS", None)))
-        
-        if self.config.pop("_is_first_run", False) and platform.system() != "Darwin":
-            self.after(500, lambda: self.queue.put(("SHOW_SETTINGS", None)))
-            
-        # Bind macOS Reopen event (when user clicks the dock icon of an already running app)
-        if platform.system() == "Darwin":
-            self.createcommand("::tk::mac::ReopenApplication", self.on_mac_reopen)
-        
+
         # Fast UI poller
         self.after(50, self.poll_queue)
-
-    def on_mac_reopen(self):
-        self.queue.put(("SHOW_SETTINGS", None))
 
     def setup_tray(self):
         menu = pystray.Menu(
@@ -547,17 +523,16 @@ class ExplainerApp(ctk.CTk):
         try:
             hotkey_str = self.active_hotkey
             
-            if platform.system() == "Windows" and win_keyboard is not None:
+            if win_keyboard is not None:
                 try:
-                    # Use keyboard library on Windows
                     win_combo = hotkey_str.lower().replace("cmd", "win").replace("command", "win")
                     win_keyboard.add_hotkey(win_combo, self._on_hotkey_wrapper)
                     self.hotkey_listener_type = "windows"
                     return  # Success, skip pynput
                 except ValueError:
-                    pass  # Key not in layout, fall through to pynput
-            
-            # Use pynput on macOS/Linux/Fallback
+                    pass  # Key not in layout (e.g. backtick on Russian), fall through to pynput
+
+            # Pynput fallback — used only when the keyboard library cannot bind the chord on this layout
             parts = hotkey_str.lower().split("+")
             pynput_parts = []
             for p in parts:
@@ -616,13 +591,12 @@ class ExplainerApp(ctk.CTk):
         # Step 2: Empty the text clipboard to ensure we don't grab stale text
         pyperclip.copy("")
 
-        # Step 3: Simulate Ctrl+C (Windows/Linux) or Cmd+C (macOS) to copy selected text
+        # Step 3: Simulate Ctrl+C to copy selected text
         kb = KeyboardController()
-        modifier = Key.cmd if platform.system() == "Darwin" else Key.ctrl
-        kb.press(modifier)
+        kb.press(Key.ctrl)
         kb.press('c')
         kb.release('c')
-        kb.release(modifier)
+        kb.release(Key.ctrl)
         time.sleep(0.15)
         
         # Step 4: Check if any new text was copied
@@ -664,20 +638,15 @@ class ExplainerApp(ctk.CTk):
                 if not self.settings_window or not self.settings_window.winfo_exists():
                     self.settings_window = SettingsWindow(self, self.config, self.update_config)
                 else:
-                    if platform.system() == "Darwin":
-                        self.settings_window.deiconify() # Restore if it was withdrawn
                     self.settings_window.focus_force()
             elif msg == "TOGGLE_SETTINGS":
                 if self.settings_window and self.settings_window.winfo_exists():
-                    if platform.system() == "Darwin":
-                        self.settings_window.withdraw()
-                    else:
-                        self.settings_window.destroy()
-                        self.settings_window = None
+                    self.settings_window.destroy()
+                    self.settings_window = None
                 else:
                     self.settings_window = SettingsWindow(self, self.config, self.update_config)
             elif msg == "QUIT":
-                if platform.system() != "Darwin" and hasattr(self, 'icon'):
+                if hasattr(self, 'icon'):
                     self.icon.stop()
                 self.destroy()
         except queue.Empty:

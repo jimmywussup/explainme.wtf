@@ -23,15 +23,12 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-import sys
-exe_name = 'explainme.wtf' if sys.platform == 'win32' else 'explainme'
-
 exe = EXE(
     pyz,
     a.scripts,
     [],
     exclude_binaries=True,
-    name=exe_name,
+    name='explainme.wtf',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -52,11 +49,3 @@ coll = COLLECT(
     upx_exclude=[],
     name='explainme.wtf',
 )
-
-if sys.platform == 'darwin':
-    app = BUNDLE(
-        coll,
-        name='explainme.app',
-        icon=None,
-        bundle_identifier='wtf.explainme.app',
-    )

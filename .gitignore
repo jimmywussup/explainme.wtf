@@ -22,3 +22,20 @@ config.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Internal working-process docs (kept local only, never pushed)
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+ARCHITECTURE.md
+CURRENT_STATE.md
+DECISIONS.md
+CHANGELOG.md
+BUGS.md
+SESSION_STARTERS.md
+plans/
+.agents/
+specs/
+instructuions of project archeticture
+landing_page/
+.human/
